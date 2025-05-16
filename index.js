@@ -147,3 +147,21 @@ app.get('/estadisticas', async (req, res) => {
     res.status(500).json({ error: "Error al obtener estadísticas" });
   }
 });
+
+// PUT /pedidos/:id/estado
+app.put('/pedidos/:id/estado', async (req, res) => {
+  const { id } = req.params;
+  const { estado } = req.body;
+
+  try {
+    const pedidoActualizado = await prisma.pedido.update({
+      where: { id: parseInt(id) },
+      data: { estado }
+    });
+
+    res.json(pedidoActualizado);
+  } catch (error) {
+    console.error('Error al actualizar estado:', error);
+    res.status(500).json({ error: 'Error al actualizar el estado del pedido' });
+  }
+});
