@@ -15,7 +15,16 @@ app.get('/', (req, res) => {
 
 // ✅ POST /pedidos con validación segura
 app.post('/pedidos', async (req, res) => {
-  const { familiar, totalMonto, comentarios, articulos } = req.body;
+  const { familiar, totalMonto, comentarios, articulos, fecha, estado } = req.body;
+
+// Obtener último código
+const ultimo = await prisma.pedido.findFirst({
+  orderBy: { id: 'desc' },
+  select: { id: true }
+});
+
+const nuevoCodigo = `Dx${String((ultimo?.id || 0) + 1).padStart(4, '0')}`;
+
 
   // Validación: articulos debe ser un array
   if (!Array.isArray(articulos)) {
