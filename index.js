@@ -103,7 +103,7 @@ app.delete('/pedidos/:id', async (req, res) => {
 
 app.get('/estadisticas', async (req, res) => {
   try {
-    const [porMes, entregados, porEstado] = await Promise.all([
+    const [porMes, entregados, porEstado, pedidos] = await Promise.all([
       prisma.pedido.groupBy({
         by: ['fecha'],
         _count: true
@@ -121,6 +121,13 @@ app.get('/estadisticas', async (req, res) => {
       prisma.pedido.groupBy({
         by: ['estado'],
         _count: true
+      }),
+
+      prisma.pedido.findMany({
+        select: {
+          familiar: true,
+          totalMonto: true
+        }
       })
     ]);
 
@@ -137,16 +144,24 @@ app.get('/estadisticas', async (req, res) => {
       porEstadoObj[estado] = _count;
     });
 
+    // Agrupar por persona
+    const porPersona = {};
+    pedidos.forEach(({ familiar, totalMonto }) => {
+      porPersona[familiar] = (porPersona[familiar] || 0) + totalMonto;
+    });
+
     res.json({
       totalPorMes,
       montoEntregado: entregados._sum.totalMonto || 0,
-      porEstado: porEstadoObj
+      porEstado: porEstadoObj,
+      porPersona
     });
   } catch (error) {
     console.error("Error en /estadisticas:", error);
     res.status(500).json({ error: "Error al obtener estadísticas" });
   }
 });
+
 
 // PUT /pedidos/:id/estado
 app.put('/pedidos/:id/estado', async (req, res) => {
