@@ -3,18 +3,14 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-  "start": "node index.js",
-  "postinstall": "prisma generate"
-}
-
-,
+    "dev": "node index.js",
+    "postinstall": "prisma generate"
+  },
   "dependencies": {
-  "@prisma/client": "^6.8.1",
-  "prisma": "^6.8.1",
-  "cors": "^2.8.5",
-  "express": "^4.21.2"
-}
-,
+    "@prisma/client": "^6.8.1",
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
   "devDependencies": {
     "prisma": "^6.8.1"
   }

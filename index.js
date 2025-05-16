@@ -86,3 +86,17 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en puerto ${PORT}`);
 });
+
+// DELETE /pedidos/:id
+app.delete('/pedidos/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await prisma.articuloPedido.deleteMany({ where: { pedidoId: parseInt(id) } }); // primero borra artículos
+    await prisma.pedido.delete({ where: { id: parseInt(id) } }); // luego borra el pedido
+
+    res.json({ mensaje: 'Pedido eliminado correctamente' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al eliminar el pedido', detalle: error.message });
+  }
+});
