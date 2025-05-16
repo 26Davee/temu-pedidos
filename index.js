@@ -100,3 +100,50 @@ app.delete('/pedidos/:id', async (req, res) => {
     res.status(500).json({ error: 'Error al eliminar el pedido', detalle: error.message });
   }
 });
+
+app.get('/estadisticas', async (req, res) => {
+  try {
+    const [porMes, entregados, porEstado] = await Promise.all([
+      prisma.pedido.groupBy({
+        by: ['fecha'],
+        _count: true
+      }),
+
+      prisma.pedido.aggregate({
+        _sum: {
+          totalMonto: true
+        },
+        where: {
+          estado: 'ENTREGADO'
+        }
+      }),
+
+      prisma.pedido.groupBy({
+        by: ['estado'],
+        _count: true
+      })
+    ]);
+
+    // Agrupar pedidos por año-mes (ej. 2025-05)
+    const totalPorMes = {};
+    porMes.forEach(({ fecha, _count }) => {
+      const key = fecha.toISOString().slice(0, 7);
+      totalPorMes[key] = (totalPorMes[key] || 0) + _count;
+    });
+
+    // Agrupar por estado
+    const porEstadoObj = {};
+    porEstado.forEach(({ estado, _count }) => {
+      porEstadoObj[estado] = _count;
+    });
+
+    res.json({
+      totalPorMes,
+      montoEntregado: entregados._sum.totalMonto || 0,
+      porEstado: porEstadoObj
+    });
+  } catch (error) {
+    console.error("Error en /estadisticas:", error);
+    res.status(500).json({ error: "Error al obtener estadísticas" });
+  }
+});
