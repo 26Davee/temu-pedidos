@@ -36,18 +36,21 @@ const nuevoCodigo = `Dx${String((ultimo?.id || 0) + 1).padStart(4, '0')}`;
 
   try {
     const pedido = await prisma.pedido.create({
-      data: {
-        familiar,
-        totalMonto,
-        comentarios,
-        articulos: {
-          create: articulos.map((a) => ({
-            nombre: a.nombre,
-            cantidad: a.cantidad,
-            precioUnit: a.precioUnit,
-          })),
-        },
-      },
+    data: {
+      familiar,
+      totalMonto,
+      comentarios,
+      fecha: fecha ? new Date(fecha) : new Date(),
+      estado: estado || 'PENDIENTE',
+      codigo: nuevoCodigo,
+      articulos: {
+        create: articulos.map((a) => ({
+          nombre: a.nombre,
+          cantidad: a.cantidad,
+          precioUnit: a.precioUnit
+        }))
+      }
+    },
       include: { articulos: true },
     });
 
