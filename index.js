@@ -13,8 +13,17 @@ app.get('/', (req, res) => {
   res.send('Servidor funcionando 🎉');
 });
 
+// ✅ POST /pedidos con validación segura
 app.post('/pedidos', async (req, res) => {
   const { familiar, totalMonto, comentarios, articulos } = req.body;
+
+  // Validación: articulos debe ser un array
+  if (!Array.isArray(articulos)) {
+    return res.status(400).json({
+      error: 'Los artículos deben ser un arreglo válido.',
+      detalle: typeof articulos,
+    });
+  }
 
   try {
     const pedido = await prisma.pedido.create({
@@ -35,16 +44,19 @@ app.post('/pedidos', async (req, res) => {
 
     res.json(pedido);
   } catch (error) {
-    res.status(500).json({ error: 'Error al crear pedido', detalle: error.message });
+    res.status(500).json({
+      error: 'Error al crear pedido',
+      detalle: error.message,
+    });
   }
 });
 
-
+// GET /pedidos
 app.get('/pedidos', async (req, res) => {
   try {
     const pedidos = await prisma.pedido.findMany({
       include: { articulos: true },
-      orderBy: { fecha: 'desc' }
+      orderBy: { fecha: 'desc' },
     });
     res.json(pedidos);
   } catch (error) {
@@ -52,6 +64,7 @@ app.get('/pedidos', async (req, res) => {
   }
 });
 
+// GET /pedidos/:id
 app.get('/pedidos/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -64,39 +77,12 @@ app.get('/pedidos/:id', async (req, res) => {
     if (pedido) res.json(pedido);
     else res.status(404).json({ error: 'Pedido no encontrado' });
   } catch (error) {
-    res.status(500).json({ error: 'Error al buscar pedido' });
+    res.status(500).json({ error: 'Error al obtener el pedido' });
   }
 });
 
-app.put('/pedidos/:id/estado', async (req, res) => {
-  const { id } = req.params;
-  const { estado } = req.body;
-
-  try {
-    const pedido = await prisma.pedido.update({
-      where: { id: parseInt(id) },
-      data: { estado },
-    });
-
-    res.json(pedido);
-  } catch (error) {
-    res.status(500).json({ error: 'Error al actualizar estado' });
-  }
-});
-
+// Iniciar servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
-});
-
-app.delete('/pedidos/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    await prisma.pedido.delete({
-      where: { id: parseInt(id) }
-    });
-    res.json({ mensaje: 'Pedido eliminado' });
-  } catch (error) {
-    res.status(500).json({ error: 'Error al eliminar pedido' });
-  }
+  console.log(`Servidor escuchando en puerto ${PORT}`);
 });
