@@ -58,9 +58,11 @@ app.get('/', (req, res) => {
 app.post('/pedidos', async (req, res) => {
   const { familiar, totalMonto, comentarios, articulos, fecha, estado } = req.body;
 
-  if (!Array.isArray(articulos)) {
-    return res.status(400).json({ error: 'Los artículos deben ser un arreglo válido.', detalle: typeof articulos });
-  }
+  const parsedArticulos = typeof articulos === 'string' ? JSON.parse(articulos) : articulos;
+if (!Array.isArray(parsedArticulos)) {
+  return res.status(400).json({ error: 'Los artículos deben ser un arreglo válido.', detalle: articulos });
+}
+
 
   const ultimo = await prisma.pedido.findFirst({ orderBy: { id: 'desc' }, select: { id: true } });
   const nuevoCodigo = `Dx${String((ultimo?.id || 0) + 1).padStart(4, '0')}`;
@@ -145,14 +147,24 @@ app.get('/pedidos', async (req, res) => {
 app.delete('/pedidos/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    await prisma.articuloPedido.deleteMany({ where: { pedidoId: parseInt(id) } });
-    await prisma.imagen.deleteMany({ where: { pedidoId: parseInt(id) } });
-    await prisma.pedido.delete({ where: { id: parseInt(id) } });
+    await prisma.articuloPedido.deleteMany({
+      where: { pedidoId: parseInt(id) }
+    });
+
+    await prisma.imagenPedido.deleteMany({
+      where: { pedidoId: parseInt(id) }
+    });
+
+    await prisma.pedido.delete({
+      where: { id: parseInt(id) }
+    });
+
     res.json({ mensaje: 'Pedido eliminado correctamente' });
   } catch (error) {
     res.status(500).json({ error: 'Error al eliminar el pedido', detalle: error.message });
   }
 });
+
 
 // PUT /pedidos/:id/estado
 app.put('/pedidos/:id/estado', async (req, res) => {
