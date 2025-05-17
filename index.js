@@ -147,23 +147,15 @@ app.get('/pedidos', async (req, res) => {
 app.delete('/pedidos/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    await prisma.articuloPedido.deleteMany({
-      where: { pedidoId: parseInt(id) }
-    });
-
-    await prisma.imagenPedido.deleteMany({
-      where: { pedidoId: parseInt(id) }
-    });
-
-    await prisma.pedido.delete({
-      where: { id: parseInt(id) }
-    });
-
+    await prisma.ArticuloPedido.deleteMany({ where: { pedidoId: parseInt(id) } });
+    await prisma.ImagenPedido.deleteMany({ where: { pedidoId: parseInt(id) } });
+    await prisma.Pedido.delete({ where: { id: parseInt(id) } });
     res.json({ mensaje: 'Pedido eliminado correctamente' });
   } catch (error) {
     res.status(500).json({ error: 'Error al eliminar el pedido', detalle: error.message });
   }
 });
+
 
 
 // PUT /pedidos/:id/estado
