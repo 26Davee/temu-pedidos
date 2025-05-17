@@ -1,34 +1,41 @@
+// index.js completo y listo para Railway con Cloudinary
+
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { v2 as cloudinary } from 'cloudinary';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
 
 const app = express();
 const prisma = new PrismaClient();
 
-// Configura __dirname para ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Configurar Cloudinary
+cloudinary.config({
+  cloud_name: 'dfctbohwl',
+  api_key: '714866567511648',
+  api_secret: '0A-m5IzsCKfVehsMHI7Obq37IC0'
+});
+
+// Configurar almacenamiento con Cloudinary
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: 'temu-pedidos',
+    allowed_formats: ['jpg', 'jpeg', 'png']
+  }
+});
+
+const upload = multer({ storage });
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // servir imágenes
-
-// Multer configuración
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, 'uploads'));
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, uniqueName);
-  }
-});
-const upload = multer({ storage });
 
 // Ruta de prueba
 app.get('/', (req, res) => {
@@ -39,19 +46,11 @@ app.get('/', (req, res) => {
 app.post('/pedidos', async (req, res) => {
   const { familiar, totalMonto, comentarios, articulos, fecha, estado } = req.body;
 
-  // Validación
   if (!Array.isArray(articulos)) {
-    return res.status(400).json({
-      error: 'Los artículos deben ser un arreglo válido.',
-      detalle: typeof articulos,
-    });
+    return res.status(400).json({ error: 'Los artículos deben ser un arreglo válido.', detalle: typeof articulos });
   }
 
-  // Obtener código secuencial
-  const ultimo = await prisma.pedido.findFirst({
-    orderBy: { id: 'desc' },
-    select: { id: true }
-  });
+  const ultimo = await prisma.pedido.findFirst({ orderBy: { id: 'desc' }, select: { id: true } });
   const nuevoCodigo = `Dx${String((ultimo?.id || 0) + 1).padStart(4, '0')}`;
 
   try {
@@ -64,11 +63,7 @@ app.post('/pedidos', async (req, res) => {
         estado: estado || 'PENDIENTE',
         codigo: nuevoCodigo,
         articulos: {
-          create: articulos.map((a) => ({
-            nombre: a.nombre,
-            cantidad: a.cantidad,
-            precioUnit: a.precioUnit
-          }))
+          create: articulos.map((a) => ({ nombre: a.nombre, cantidad: a.cantidad, precioUnit: a.precioUnit }))
         }
       },
       include: { articulos: true }
@@ -80,7 +75,7 @@ app.post('/pedidos', async (req, res) => {
   }
 });
 
-// ✅ POST /pedidos-con-foto (con imágenes)
+// POST /pedidos-con-foto (con imagenes en Cloudinary)
 app.post('/pedidos-con-foto', upload.array('imagenes'), async (req, res) => {
   try {
     const { familiar, totalMonto, fecha, estado, comentarios, articulos } = req.body;
@@ -91,11 +86,7 @@ app.post('/pedidos-con-foto', upload.array('imagenes'), async (req, res) => {
 
     const articulosArray = JSON.parse(articulos);
 
-    // Obtener código secuencial
-    const ultimo = await prisma.pedido.findFirst({
-      orderBy: { id: 'desc' },
-      select: { id: true }
-    });
+    const ultimo = await prisma.pedido.findFirst({ orderBy: { id: 'desc' }, select: { id: true } });
     const nuevoCodigo = `Dx${String((ultimo?.id || 0) + 1).padStart(4, '0')}`;
 
     const pedido = await prisma.pedido.create({
@@ -107,16 +98,10 @@ app.post('/pedidos-con-foto', upload.array('imagenes'), async (req, res) => {
         codigo: nuevoCodigo,
         comentarios,
         articulos: {
-          create: articulosArray.map(a => ({
-            nombre: a.nombre,
-            cantidad: a.cantidad,
-            precioUnit: a.precioUnit
-          }))
+          create: articulosArray.map(a => ({ nombre: a.nombre, cantidad: a.cantidad, precioUnit: a.precioUnit }))
         },
         imagenes: {
-          create: req.files.map(file => ({
-            url: `/uploads/${file.filename}`
-          }))
+          create: req.files.map(file => ({ url: file.path }))
         }
       },
       include: { articulos: true, imagenes: true }
@@ -139,21 +124,6 @@ app.get('/pedidos', async (req, res) => {
     res.json(pedidos);
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener pedidos' });
-  }
-});
-
-// GET /pedidos/:id
-app.get('/pedidos/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const pedido = await prisma.pedido.findUnique({
-      where: { id: parseInt(id) },
-      include: { articulos: true, imagenes: true },
-    });
-    if (pedido) res.json(pedido);
-    else res.status(404).json({ error: 'Pedido no encontrado' });
-  } catch (error) {
-    res.status(500).json({ error: 'Error al obtener el pedido' });
   }
 });
 
@@ -190,10 +160,7 @@ app.get('/estadisticas', async (req, res) => {
   try {
     const [porMes, entregados, porEstado, pedidos] = await Promise.all([
       prisma.pedido.groupBy({ by: ['fecha'], _count: true }),
-      prisma.pedido.aggregate({
-        _sum: { totalMonto: true },
-        where: { estado: 'ENTREGADO' }
-      }),
+      prisma.pedido.aggregate({ _sum: { totalMonto: true }, where: { estado: 'ENTREGADO' } }),
       prisma.pedido.groupBy({ by: ['estado'], _count: true }),
       prisma.pedido.findMany({ select: { familiar: true, totalMonto: true } })
     ]);
@@ -225,7 +192,6 @@ app.get('/estadisticas', async (req, res) => {
   }
 });
 
-// Iniciar servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en puerto ${PORT}`);
