@@ -8,6 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import dotenv from 'dotenv';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -15,27 +16,38 @@ const prisma = new PrismaClient();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Configurar Cloudinary
+dotenv.config();
+
 cloudinary.config({
-  cloud_name: 'dfctbohwl',
-  api_key: '714866567511648',
-  api_secret: '0A-m5IzsCKfVehsMHI7Obq37IC0'
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
 // Configurar almacenamiento con Cloudinary
 const storage = new CloudinaryStorage({
   cloudinary,
-  params: {
+  params: async () => ({
     folder: 'temu-pedidos',
-    allowed_formats: ['jpg', 'jpeg', 'png']
-  }
+    resource_type: 'image'
+  })
 });
 
 const upload = multer({ storage });
 
 // Middleware
-app.use(cors());
 app.use(express.json());
+app.use(cors({
+  origin: 'https://temu-frontend.vercel.app',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
+
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+});
+
 
 // Ruta de prueba
 app.get('/', (req, res) => {
@@ -100,9 +112,11 @@ app.post('/pedidos-con-foto', upload.array('imagenes'), async (req, res) => {
         articulos: {
           create: articulosArray.map(a => ({ nombre: a.nombre, cantidad: a.cantidad, precioUnit: a.precioUnit }))
         },
+        
         imagenes: {
-          create: req.files.map(file => ({ url: file.path }))
+          create: req.files.map(file => ({ url: file.path || file.secure_url }))
         }
+
       },
       include: { articulos: true, imagenes: true }
     });
